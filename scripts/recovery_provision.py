@@ -119,7 +119,7 @@ def obtain_identity(keygen: Path, store: Path, label: str) -> tuple[str, str]:
     return private_key, recipient
 
 
-def build_zip_in_memory(source: Path) -> tuple[bytes, int, int]:
+def build_zip_in_memory(source: Path, restic_store: Path | None = None) -> tuple[bytes, int, int]:
     """加密前的ZIP只存在内存中，不写入硬盘以免残留恢复码明文。"""
     if not source.is_dir() or not (source / ".git").exists():
         raise ValueError("必须明确指向原版RecoveryCode的Git工作树")
@@ -141,11 +141,21 @@ def build_zip_in_memory(source: Path) -> tuple[bytes, int, int]:
             content = path.read_bytes()
             z.writestr(relative, content)
             manifest["files"][relative] = hashlib.sha256(content).hexdigest()
+        if restic_store is not None:
+            # 新Restic六份密码只存在DPAPI或本内存归档，绝不生成明文 .txt。
+            # 目录名仅在整个age文件解密后的ZIP内部可见。
+            from restic_recovery import SLOTS, obtain_password
+            for name in SLOTS:
+                text=obtain_password(restic_store,name).encode("ascii")+b"\n"
+                relative="new-restic-v2-recovery/"+name+".password.txt"
+                z.writestr(relative,text)
+                manifest["files"][relative]=hashlib.sha256(text).hexdigest()
+                count_extra=len(SLOTS)
         z.writestr(
             "_vault_manifest.sha256.json",
             json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2),
         )
-    return archive.getvalue(), len(paths), total
+    return archive.getvalue(), len(paths)+(len(SLOTS) if restic_store is not None else 0), total
 
 
 def validate_plain_zip(plaintext: bytes, count: int) -> None:
@@ -169,6 +179,8 @@ def main() -> None:
     parser.add_argument("--age", type=Path, required=True)
     parser.add_argument("--age-keygen", type=Path, required=True)
     parser.add_argument("--key-store", type=Path, required=True)
+    parser.add_argument("--restic-key-store", type=Path,
+        help="可选：把新restic仓六份DPAPI密码直接写进age加密前的内存ZIP")
     args = parser.parse_args()
 
     args.publish.parent.mkdir(parents=True, exist_ok=True)
@@ -179,7 +191,7 @@ def main() -> None:
         obtain_identity(args.age_keygen, args.key_store, "apple-passwords"),
         obtain_identity(args.age_keygen, args.key_store, "cloudflare-access"),
     ]
-    bundle, count, size = build_zip_in_memory(source)
+    bundle, count, size = build_zip_in_memory(source,args.restic_key_store)
     encrypted = subprocess.run(
         [str(args.age), "-r", identities[0][1], "-r", identities[1][1]],
         input=bundle, capture_output=True, check=True, timeout=40,
