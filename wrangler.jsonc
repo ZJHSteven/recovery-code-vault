@@ -8,6 +8,11 @@
     "directory": "./docs"
   },
   "workers_dev": true,
-  "preview_urls": false
+  "preview_urls": false,
+  // 公共恢复镜像：与受Cloudflare Access保护的
+  // vault-recovery.zjhstudio.com是两个不同的安全边界。
+  "routes": [
+    { "pattern": "recovery-codes.zjhstudio.com", "custom_domain": true }
+  ]
 }
 
