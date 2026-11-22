@@ -186,17 +186,8 @@ def main() -> None:
     ).stdout
     if not encrypted.startswith(b"age-encryption.org/v1\n"):
         raise ValueError("age命令生成的不是标准age-v1密文")
-    # 分别使用两把完全不同的私钥从同一份密文复原所有文件。
-    for private, _ in identities:
-        decrypted = subprocess.run(
-            [str(args.age), "-d", "-i", "-", str(args.publish)] if False else
-            [str(args.age), "-d", "-i", "-"],
-            input=private.encode() + b"\n" + b"",
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=40,
-        )
-        # 上面的调用在未提供密文时会读stdin，为了不在同一stdin混合key与密文，
-        # 将密文先原子持久化之后调用文件参数来完成真正跨实现验证。
-        break
+    # 不允许持久化ZIP明文；先持久化只有密文的临时文件，
+    # 以便age能够用 -i - 从stdin接收私钥、从磁盘文件读取密文。
     fd, tmp_name = tempfile.mkstemp(prefix=".vault-age-", suffix=".tmp", dir=args.publish.parent)
     try:
         with os.fdopen(fd, "wb") as output:
