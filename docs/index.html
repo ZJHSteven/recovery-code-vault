@@ -26,6 +26,10 @@
     <section class="panel">
       <h2>2. 输入独立保存的身份密钥</h2>
       <p>在 Apple 密码、可信离线介质或受保护的恢复渠道找到 <code>AGE-SECRET-KEY-…</code>。<strong>Passkey 认证本身不等于解密密钥</strong>，不能凭登录本网站直接获取明文。</p>
+      <p>已设置 Cloudflare Access 恢复通道：
+        <a href="https://vault-recovery.zjhstudio.com/v1/recovery-vault-identity" referrerpolicy="no-referrer">经本人身份验证领取 age 身份</a>。
+        授权后页面返回 JSON，复制其中的 <code>identity</code> 字段，再粘贴到下方。请务必同时在 Apple 密码或离线介质另存独立身份，避免单一云平台故障。
+      </p>
       <label for="identity">age 身份密钥</label>
       <textarea id="identity" rows="3" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="粘贴你自己持有的 age 身份密钥"></textarea>
       <button id="recover" type="button">本地解密并保存 ZIP</button>
