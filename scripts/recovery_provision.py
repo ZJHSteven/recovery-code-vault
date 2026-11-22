@@ -119,7 +119,10 @@ def obtain_identity(keygen: Path, store: Path, label: str) -> tuple[str, str]:
     return private_key, recipient
 
 
-def build_zip_in_memory(source: Path, restic_store: Path | None = None) -> tuple[bytes, int, int]:
+def build_zip_in_memory(
+    source: Path, restic_store: Path | None = None,
+    legacy_recovery_dir: Path | None = None,
+) -> tuple[bytes, int, int]:
     """加密前的ZIP只存在内存中，不写入硬盘以免残留恢复码明文。"""
     if not source.is_dir() or not (source / ".git").exists():
         raise ValueError("必须明确指向原版RecoveryCode的Git工作树")
@@ -135,12 +138,25 @@ def build_zip_in_memory(source: Path, restic_store: Path | None = None) -> tuple
         raise ValueError("恢复码原始目录超出256MiB，避免内存归档意外耗尽内存")
     archive = io.BytesIO()
     manifest: dict[str, object] = {"format": "recovery-vault-zip-v1", "files": {}}
+    legacy_files = (
+        sorted(legacy_recovery_dir.glob("*.recovery-key.txt"))
+        if legacy_recovery_dir is not None else []
+    )
+    if legacy_recovery_dir is not None and not legacy_files:
+        raise ValueError("没有找到旧格式恢复码，拒绝声称旧仓已经得到异地备份")
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
         for path in paths:
             relative = path.relative_to(source).as_posix()
             content = path.read_bytes()
             z.writestr(relative, content)
             manifest["files"][relative] = hashlib.sha256(content).hexdigest()
+        for path in legacy_files:
+            if not path.is_file() or path.is_symlink():
+                raise ValueError("旧恢复码必须是本机普通文件")
+            content=path.read_bytes()
+            relative="legacy-pikpak-v1-keys/"+path.name
+            z.writestr(relative,content)
+            manifest["files"][relative]=hashlib.sha256(content).hexdigest()
         if restic_store is not None:
             # 新Restic六份密码只存在DPAPI或本内存归档，绝不生成明文 .txt。
             # 目录名仅在整个age文件解密后的ZIP内部可见。
@@ -150,12 +166,15 @@ def build_zip_in_memory(source: Path, restic_store: Path | None = None) -> tuple
                 relative="new-restic-v2-recovery/"+name+".password.txt"
                 z.writestr(relative,text)
                 manifest["files"][relative]=hashlib.sha256(text).hexdigest()
-                count_extra=len(SLOTS)
         z.writestr(
             "_vault_manifest.sha256.json",
             json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2),
         )
-    return archive.getvalue(), len(paths)+(len(SLOTS) if restic_store is not None else 0), total
+    return (
+        archive.getvalue(),
+        len(paths)+len(legacy_files)+(len(SLOTS) if restic_store is not None else 0),
+        total+sum(p.stat().st_size for p in legacy_files),
+    )
 
 
 def validate_plain_zip(plaintext: bytes, count: int) -> None:
@@ -181,6 +200,8 @@ def main() -> None:
     parser.add_argument("--key-store", type=Path, required=True)
     parser.add_argument("--restic-key-store", type=Path,
         help="可选：把新restic仓六份DPAPI密码直接写进age加密前的内存ZIP")
+    parser.add_argument("--legacy-recovery-dir", type=Path,
+        help="可选：把旧PikPak v1恢复码也装进同一份age密文，直到旧仓恢复验收完成")
     args = parser.parse_args()
 
     args.publish.parent.mkdir(parents=True, exist_ok=True)
@@ -191,7 +212,8 @@ def main() -> None:
         obtain_identity(args.age_keygen, args.key_store, "apple-passwords"),
         obtain_identity(args.age_keygen, args.key_store, "cloudflare-access"),
     ]
-    bundle, count, size = build_zip_in_memory(source,args.restic_key_store)
+    bundle, count, size = build_zip_in_memory(
+        source,args.restic_key_store,args.legacy_recovery_dir)
     encrypted = subprocess.run(
         [str(args.age), "-r", identities[0][1], "-r", identities[1][1]],
         input=bundle, capture_output=True, check=True, timeout=40,
