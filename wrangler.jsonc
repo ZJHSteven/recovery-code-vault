@@ -1,0 +1,13 @@
+{
+  // 与 GitHub Pages完全独立的Cloudflare Workers Static Assets托管端；
+  // 没有main、没有执行函数、没有密钥、没有Cloudflare Access身份释放接口。
+  // 此Worker永远只提供公开的age密文和浏览器端静态解密代码。
+  "name": "recovery-code-vault-static",
+  "compatibility_date": "2026-11-22",
+  "assets": {
+    "directory": "./docs"
+  },
+  "workers_dev": true,
+  "preview_urls": false
+}
+
