@@ -1,0 +1,18 @@
+{
+  "name": "recovery-code-vault-pages",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/app.js --bundle --platform=browser --format=iife --minify --target=es2023 --outfile=docs/decrypt.js",
+    "test": "node --test tests/*.test.mjs",
+    "check": "npm run build && npm test"
+  },
+  "dependencies": {
+    "age-encryption": "0.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}
+

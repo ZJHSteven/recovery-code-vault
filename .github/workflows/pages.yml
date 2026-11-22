@@ -1,0 +1,37 @@
+name: Publish encrypted recovery portal
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject accidental plaintext secrets in Pages assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/vault.age
+          test -s docs/decrypt.js
+          test "$(head -c 19 docs/vault.age)" = 'age-encryption.org/'
+          if find docs -type f \( -name '*.zip' -o -name '*.identity' -o -name '*.txt' -o -name '*.private' -o -name '*.dpapi' \) | grep .; then
+            echo 'Disallowed secret-like file detected in public Pages output'
+            exit 1
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Recovery Vault · 离线优先的加密恢复金库</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./decrypt.js" defer></script>
+</head>
+<body>
+  <main class="layout">
+    <div class="eyebrow">RECOVERY VAULT / AGE V1</div>
+    <h1>加密恢复金库</h1>
+    <p class="intro">恢复资料始终以 <strong>age 标准加密文件</strong>存放。这个页面只提供本地浏览器解密功能，服务器不持有你的解密密钥。</p>
+    <section class="panel">
+      <h2>1. 选择密文来源</h2>
+      <p>默认读取当前站点托管的 <code>vault.age</code>。即使 GitHub 或 Cloudflare 不可用，也可以从 iCloud、U 盘或其他备份位置选择你保存的副本。</p>
+      <label class="upload">可选：从本地选择 <code>.age</code> 密文文件
+        <input id="encryptedFile" type="file" accept=".age,application/octet-stream">
+      </label>
+      <div id="sourceLabel" class="hint">尚未选择本地文件，将使用当前站点的密文</div>
+    </section>
+    <section class="panel">
+      <h2>2. 输入独立保存的身份密钥</h2>
+      <p>在 Apple 密码、可信离线介质或受保护的恢复渠道找到 <code>AGE-SECRET-KEY-…</code>。<strong>Passkey 认证本身不等于解密密钥</strong>，不能凭登录本网站直接获取明文。</p>
+      <label for="identity">age 身份密钥</label>
+      <textarea id="identity" rows="3" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="粘贴你自己持有的 age 身份密钥"></textarea>
+      <button id="recover" type="button">本地解密并保存 ZIP</button>
+      <p id="status" role="status" aria-live="polite"></p>
+    </section>
+    <section class="notes">
+      <h2>安全与恢复说明</h2>
+      <p>本页面无分析脚本、无第三方字体或 CDN、无服务端上传接口。浏览器只对当前站点发出读取静态加密文件的请求。解密后的 ZIP 中含敏感恢复资料，请勿将其分享到公开网站。</p>
+      <p>同一份密文可复制到不同托管位置，但<strong>仅重复复制密文不能代替独立保存解密密钥</strong>。请同时保留跨设备有效的身份密钥和离机备份。</p>
+    </section>
+    <footer>使用标准 age 文件格式；应用代码可独立保存，恢复不依赖本站持续在线。</footer>
+  </main>
+</body>
+</html>
+

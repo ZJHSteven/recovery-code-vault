@@ -1,0 +1,13 @@
+node_modules/
+.tmp/
+*.zip
+*.identity
+*.agekey
+*.dpapi
+*.password
+*.recovery-key.txt
+*.secret
+*.private
+.env*
+!docs/vault.age
+
